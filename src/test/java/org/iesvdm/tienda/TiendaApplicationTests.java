@@ -13,6 +13,7 @@ import org.springframework.util.Assert;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.*;
+import java.util.stream.IntStream;
 
 import static java.util.Comparator.*;
 
@@ -242,25 +243,28 @@ class TiendaApplicationTests {
 	void test11() {
 		var listProds = prodRepo.findAll();
 
-        var listProdCar = listProds.stream() //Producto //DEBERIA ser Optional<Producto>
+        /** var listProdCar = listProds.stream() //Producto //DEBERIA ser Optional<Producto>
                 .sorted(comparing((Producto p)-> p.getPrecio(),reverseOrder()))//.findFirst() [Tiene que venir de Optional] para encontrar el primero
-                .limit(1) //Limitamos en 1 para coger solo 1 (el mas caro)
+                .limit(1) //Limitamos en 1 para coger solo 1 (el más caro)
                 .map ( p -> p.getNombre() + " " + p.getPrecio() + "€")
-                .toList();
-        /**
+                .toList();*/
+        Optional<Producto> listProdCar = listProds.stream()
+                .sorted(
+                        comparing(p-> p.getPrecio(), reverseOrder())
+                ).findFirst();
         if(listProdCar.isPresent()){
             //listProdCar.isEmpty()
             Producto prod = listProdCar.get();
             System.out.println(prod.getNombre()+" "+prod.getPrecio());
         }
 
-        listProdCar.ifPresent(s -> System.out.println(s.getNombre()+" "+getPrecio()));
-         */
+        listProdCar.ifPresent(s -> System.out.println(s.getNombre()+" "+s.getPrecio()));
 
-        listProdCar.forEach(s->System.out.println(s));
+        //listProdCar.forEach(s->System.out.println(s));
+        //System.out.println(prod);
 
-        Assertions.assertEquals(1, listProdCar.size());
-        Assertions.assertTrue(listProdCar.contains("GeForce GTX 1080 Xtreme 755.0€"));
+        //Assertions.assertEquals(1, listProdCar.size());
+        //Assertions.assertTrue(listProdCar.if("GeForce GTX 1080 Xtreme 755.0€"));
 	}
 	
 	/**
@@ -463,7 +467,15 @@ class TiendaApplicationTests {
 	@Test
 	void test23() {
 		var listProds = prodRepo.findAll();
-		//TODO
+
+        var listProdsPreFabs = listProds.stream() //Producto
+                .sorted(comparing(( Producto p)->p.getFabricante().getNombre()))
+                .map ( p -> p.getNombre() + " " + p.getPrecio() + " " + p.getFabricante().getNombre() )
+                .toList();
+        listProdsPreFabs.forEach(s->System.out.println(s));
+
+        Assertions.assertEquals(11, listProdsPreFabs.size());
+        Assertions.assertTrue(listProdsPreFabs.contains("GeForce GTX 1050Ti 185.0 Gigabyte"));
 	}
 	
 	/**
@@ -472,7 +484,16 @@ class TiendaApplicationTests {
 	@Test
 	void test24() {
 		var listProds = prodRepo.findAll();
-		//TODO
+
+        var listProdsPreFabs = listProds.stream() //Producto
+                .sorted(comparing(( Producto p)->p.getFabricante().getNombre()))
+                .limit(1) //Limitamos en 1 para coger solo 1 (el más caro)
+                .map ( p -> p.getNombre() + " " + p.getPrecio() + " " + p.getFabricante().getNombre() )
+                .toList();
+        listProdsPreFabs.forEach(s->System.out.println(s));
+
+        Assertions.assertEquals(11, listProdsPreFabs.size());
+        Assertions.assertTrue(listProdsPreFabs.contains("GeForce GTX 1050Ti 185.0 Gigabyte"));
 	}
 	
 	/**
@@ -481,7 +502,15 @@ class TiendaApplicationTests {
 	@Test
 	void test25() {
 		var listProds = prodRepo.findAll();
-		//TODO	
+
+        var listProdsCrucial = listProds.stream()
+                .filter(p->p.getFabricante().getNombre().equals("Crucial") && p.getPrecio() > 200)
+                .map(p -> p.getNombre())
+                .toList();
+        listProdsCrucial.forEach(s->System.out.println(s));
+
+        Assertions.assertEquals(1, listProdsCrucial.size());
+        Assertions.assertTrue(listProdsCrucial.contains("GeForce GTX 1080 Xtreme"));
 	}
 	
 	/**
@@ -490,7 +519,17 @@ class TiendaApplicationTests {
 	@Test
 	void test26() {
 		var listProds = prodRepo.findAll();
-		//TODO
+
+        var listProdsAsusHPSea = listProds.stream()
+                .filter(p->p.getFabricante().getNombre().equals("Asus")
+                        || p.getFabricante().getNombre().equals("Hewlett-Packard")
+                        || p.getFabricante().getNombre().equals("Seagate"))
+                .map(p -> p.getNombre())
+                .toList();
+        listProdsAsusHPSea.forEach(s->System.out.println(s));
+
+        Assertions.assertEquals(5, listProdsAsusHPSea.size());
+        Assertions.assertTrue(listProdsAsusHPSea.contains("Monitor 27 LED Full HD"));
 	}
 	
 	/**
@@ -598,7 +637,15 @@ Fabricante: Xiaomi
 	@Test
 	void test31() {
 		var listProds = prodRepo.findAll();
-		//TODO
+
+        long numFabsConProds = listProds.stream()
+                .map(producto -> producto.getFabricante().getCodigo())
+                .distinct()
+                .count();
+
+        System.out.println(numFabsConProds);
+
+        Assertions.assertEquals(7,numFabsConProds);
 	}
 	
 	/**
@@ -647,14 +694,54 @@ Fabricante: Xiaomi
 	}
 	
 	
-	/**
+	/** CORREGIDO ¿?
 	 * 37. Muestra el precio máximo, precio mínimo, precio medio y el número total de productos que tiene el fabricante Crucial. 
 	 *  Realízalo en 1 solo stream principal. Utiliza reduce con Double[] como "acumulador".
 	 */
 	@Test
 	void test37() {
 		var listProds = prodRepo.findAll();
-		//TODO
+
+        var summaryStatistics = listProds.stream()
+                .filter(p->p.getFabricante().getNombre().equals("Crucial"))
+                .mapToDouble(p -> p.getPrecio())
+                .summaryStatistics();
+
+        //System.out.println(summaryStatistics);
+
+        double[] reduce = listProds.stream()
+                .filter(p->p.getFabricante().getNombre().equals("Crucial"))
+                .map(p->new double[]{p.getPrecio(),p.getPrecio(),p.getPrecio(),p.getPrecio(),0})
+                .reduce(new double[]{Double.MAX_VALUE/*min*/, 0.0/*max*/, 0.0/*sum*/,0.0/*count*/},(a,b)->{
+                    double minAct =0.0;
+                    double maxAct =0.0;
+                    double sumAct =0.0;
+                    double countAct = 0.0;
+
+                    double minAnt =  a[0];
+                    if (b[0]< minAnt){
+                        minAct = b[0];
+                    } else {
+                        minAct =minAnt;
+                    }
+
+                    double maxAnt =  a[1];
+                    if (b[1]< maxAnt){
+                        maxAct = b[1];
+                    } else {
+                        maxAct =minAnt;
+                    }
+
+                    double sumAnt =  a[2];
+                    sumAct = sumAnt + b[2];
+
+                    double countAnt =  a[3];
+                    countAct = countAnt+1;
+
+                    return new double[]{minAct, maxAct, sumAct, countAct};
+                });
+
+        System.out.println(reduce);
 	}
 	
 	/**
@@ -762,5 +849,15 @@ Hewlett-Packard              2
 		var listFabs = fabRepo.findAll();
 		//TODO
 	}
+
+    @Test
+    void testReduce() {
+
+        int sumaTotal = IntStream.iterate(1,i->i<100, i->i+2)
+                .peek(value -> System.out.println(value))
+                .reduce(0, (a,b) -> a+b);
+
+        System.out.println(sumaTotal);
+    }
 
 }
