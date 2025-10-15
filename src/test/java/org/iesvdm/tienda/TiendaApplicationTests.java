@@ -5,6 +5,7 @@ import org.iesvdm.tienda.modelo.Producto;
 import org.iesvdm.tienda.repository.FabricanteRepository;
 import org.iesvdm.tienda.repository.ProductoRepository;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -13,11 +14,13 @@ import org.springframework.util.Assert;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.*;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static java.util.Comparator.*;
 
 
+@Nested
 @SpringBootTest
 class TiendaApplicationTests {
 
@@ -545,11 +548,42 @@ Portátil Yoga 520      |452.79            |Lenovo
 Portátil Ideapd 320    |359.64000000000004|Lenovo
 Monitor 27 LED Full HD |199.25190000000003|Asus
 
-	 */		
+	 */		  //     REVISAR
 	@Test
 	void test27() {
 		var listProds = prodRepo.findAll();
-		//TODO
+
+        // Filtrar productos con precio >= 180, ordenar y formatear tabla
+        List<Producto> filtrados = listProds.stream()
+                .filter(p -> p.getPrecio() >= 180)
+                .sorted(
+                        Comparator.comparing(Producto::getPrecio).reversed()
+                                .thenComparing(Producto::getNombre)
+                )
+                .toList();
+
+        // Calcular longitudes máximas de columnas
+        int maxNombre = Math.max("Producto".length(),
+                filtrados.stream().mapToInt(p -> p.getNombre().length()).max().orElse(0));
+        int maxPrecio = Math.max("Precio".length(),
+                filtrados.stream().mapToInt(p -> String.valueOf(p.getPrecio()).length()).max().orElse(0));
+        int maxFabricante = Math.max("Fabricante".length(),
+                filtrados.stream().mapToInt(p -> p.getFabricante().getNombre().length()).max().orElse(0));
+
+        // Cabecera
+        System.out.printf("%-" + maxNombre + "s | %-" + maxPrecio + "s | %s%n",
+                "Producto", "Precio", "Fabricante");
+        System.out.println("-".repeat(maxNombre + maxPrecio + maxFabricante + 6));
+
+        // Filas
+        filtrados.forEach(p ->
+                System.out.printf("%-" + maxNombre + "s | %-" + maxPrecio + "s | %s%n",
+                        p.getNombre(), p.getPrecio(), p.getFabricante().getNombre())
+        );
+
+        Assertions.assertEquals(7, filtrados.size());
+        //Assertions.assertTrue(filtrados.contains("GeForce GTX 1080 Xtreme         | 755.0  | Crucial"));
+
 	}
 	
 	/**
@@ -605,11 +639,32 @@ Fabricante: Xiaomi
 
             	Productos:
 
-	 */
+	 */               //  REVISAR
 	@Test
 	void test28() {
 		var listFabs = fabRepo.findAll();
-		//TODO
+        var listProds = prodRepo.findAll();
+
+        // Agrupamos productos por nombre de fabricante
+        Map<String, List<String>> productosPorFabricante =
+                listProds.stream()
+                        .collect(Collectors.groupingBy(
+                                p -> p.getFabricante().getNombre(),
+                                Collectors.mapping(p -> p.getNombre(), Collectors.toList())
+                        ));
+
+        // Mostramos todos los fabricantes, incluso los sin productos
+        listFabs.stream()
+                .sorted(Comparator.comparing(Fabricante::getNombre))
+                .forEach(f -> {
+                    System.out.println("Fabricante: " + f.getNombre() + "\n");
+                    System.out.println("\t\tProductos:");
+                    productosPorFabricante.getOrDefault(f.getNombre(), List.of())
+                            .forEach(p -> System.out.println("\t\t" + p));
+                    System.out.println();
+                });
+
+        Assertions.assertEquals(7, productosPorFabricante.size());
 	}
 	
 	/**
@@ -618,8 +673,20 @@ Fabricante: Xiaomi
 	@Test
 	void test29() {
 		var listFabs = fabRepo.findAll();
-		//TODO
-	}
+
+        var fabricantesSinProductos = listFabs.stream()
+                .filter(f ->
+                        f.getProductos().stream()
+                                .noneMatch(p -> p.getFabricante().getNombre().equals(f.getNombre()))
+                )
+                .map(f -> f.getNombre())
+                .toList();
+
+        fabricantesSinProductos.forEach(System.out::println);
+
+        Assertions.assertEquals(2, fabricantesSinProductos.size());
+        Assertions.assertTrue(fabricantesSinProductos.contains("Huawei"));
+    }
 	
 	/**
 	 * 30. Calcula el número total de productos que hay en la tabla productos. Utiliza la api de stream.
@@ -627,7 +694,12 @@ Fabricante: Xiaomi
 	@Test
 	void test30() {
 		var listProds = prodRepo.findAll();
-		//TODO
+
+        var totalProductos = listProds.stream()
+                .count();
+        System.out.println(totalProductos);
+
+        Assertions.assertEquals(11, listProds.size());
 	}
 
 	
@@ -639,7 +711,7 @@ Fabricante: Xiaomi
 		var listProds = prodRepo.findAll();
 
         long numFabsConProds = listProds.stream()
-                .map(producto -> producto.getFabricante().getCodigo())
+                .map(p -> p.getFabricante().getCodigo())
                 .distinct()
                 .count();
 
@@ -653,9 +725,16 @@ Fabricante: Xiaomi
 	 */
 	@Test
 	void test32() {
-		var listProds = prodRepo.findAll();
-		//TODO
-	}
+        var listProds = prodRepo.findAll();
+
+        OptionalDouble media = listProds.stream()
+                .mapToDouble(p -> p.getPrecio())
+                .average();
+
+        System.out.println(media.getAsDouble());
+
+        Assertions.assertEquals( 271.7236363636364,media.getAsDouble());
+    }
 	
 	/**
 	 * 33. Calcula el precio más barato de todos los productos. No se puede utilizar ordenación de stream.
@@ -663,7 +742,14 @@ Fabricante: Xiaomi
 	@Test
 	void test33() {
 		var listProds = prodRepo.findAll();
-		//TODO
+
+        var precioMinimo = listProds.stream()
+                .mapToDouble(p->p.getPrecio())
+                .min();
+
+        System.out.println(precioMinimo.getAsDouble());
+
+        Assertions.assertEquals( 59.99,precioMinimo.getAsDouble());
 	}
 	
 	/**
@@ -672,7 +758,15 @@ Fabricante: Xiaomi
 	@Test
 	void test34() {
 		var listProds = prodRepo.findAll();
-		//TODO	
+
+        var sumaProductos = listProds.stream()
+                .mapToDouble(p->p.getPrecio())
+                .sum();
+
+        System.out.println(sumaProductos);
+
+         Assertions.assertEquals( 2988.96,sumaProductos);
+
 	}
 	
 	/**
@@ -681,7 +775,16 @@ Fabricante: Xiaomi
 	@Test
 	void test35() {
 		var listProds = prodRepo.findAll();
-		//TODO		
+
+        var productosAsus = listProds.stream()
+                .filter(p -> p.getFabricante().getNombre().equals("Asus"))
+                .map(p -> p.getNombre())
+                .toList();
+
+        productosAsus.forEach(System.out::println);
+
+        Assertions.assertEquals(2, productosAsus.size());
+        Assertions.assertTrue(productosAsus.contains("Monitor 27 LED Full HD"));
 	}
 	
 	/**
@@ -690,7 +793,15 @@ Fabricante: Xiaomi
 	@Test
 	void test36() {
 		var listProds = prodRepo.findAll();
-		//TODO
+
+        var mediaProductosAsus = listProds.stream()
+                .filter(p -> p.getFabricante().getNombre().equals("Asus"))
+                .mapToDouble(p -> p.getPrecio())
+                .average();
+
+        System.out.println(mediaProductosAsus);
+
+        Assertions.assertEquals(223.995, mediaProductosAsus.getAsDouble());
 	}
 	
 	
@@ -707,7 +818,7 @@ Fabricante: Xiaomi
                 .mapToDouble(p -> p.getPrecio())
                 .summaryStatistics();
 
-        //System.out.println(summaryStatistics);
+        System.out.println(summaryStatistics);
 
         double[] reduce = listProds.stream()
                 .filter(p->p.getFabricante().getNombre().equals("Crucial"))
@@ -739,9 +850,12 @@ Fabricante: Xiaomi
                     countAct = countAnt+1;
 
                     return new double[]{minAct, maxAct, sumAct, countAct};
+
+
                 });
 
-        System.out.println(reduce);
+        //System.out.println(reduce);
+
 	}
 	
 	/**
@@ -767,7 +881,34 @@ Hewlett-Packard              2
 	@Test
 	void test38() {
 		var listFabs = fabRepo.findAll();
-		//TODO
+        var listProds = prodRepo.findAll();
+
+        // --- Agrupar productos por fabricante ---
+        var productosPorFabricante = listProds.stream()
+                .collect(Collectors.groupingBy(
+                        p -> p.getFabricante().getNombre(),
+                        Collectors.counting()
+                ));
+
+        // --- Calcular también los que no tienen productos ---
+        var totalPorFabricante = listFabs.stream()
+                .collect(Collectors.toMap(
+                        f -> f.getNombre(),
+                        f -> productosPorFabricante.getOrDefault(f.getNombre(), 0L)
+                ));
+
+        // --- Imprimir tabla formateada ---
+        System.out.printf("%15s %15s%n", "Fabricante", "#Productos");
+        System.out.println("-*".repeat(30));
+
+        totalPorFabricante.entrySet().stream()
+                .sorted(Map.Entry.comparingByValue(Comparator.reverseOrder()))
+                .forEach(e ->
+                        System.out.println(String.format("%15s %15d", e.getKey(), e.getValue()))
+                );
+
+        Assertions.assertEquals(2, totalPorFabricante.get("Asus"));
+        Assertions.assertEquals(9, totalPorFabricante.size());
 	}
 	
 	/**
@@ -778,7 +919,8 @@ Hewlett-Packard              2
 	@Test
 	void test39() {
 		var listFabs = fabRepo.findAll();
-		//TODO
+
+
 	}
 	
 	/**
@@ -788,8 +930,31 @@ Hewlett-Packard              2
 	@Test
 	void test40() {
 		var listFabs = fabRepo.findAll();
-		//TODO
+        var listProds = prodRepo.findAll();
+
+        //Sacamos todas las estadisticas de los Fabricantes
+        var estadisticasPorFabricante = listProds.stream()
+                .collect(Collectors.groupingBy(
+                        p -> p.getFabricante().getCodigo(),
+                        Collectors.summarizingDouble(p-> p.getPrecio())
+                ));
+
+        //Filtramos para que solo pasen las que tengan una media superior a 200
+        var mediaMayor200 = estadisticasPorFabricante.entrySet().stream()
+                .filter(e -> e.getValue().getAverage() > 200)
+                .toList();
+
+        //Sacamos por pantalla el Codigo de fabricante y las estadisticas de cada fabricante
+        mediaMayor200.forEach(e -> System.out.println(
+                "Código fabricante: " + e.getKey() + " → " + e.getValue()
+                ));
+
+        Assertions.assertEquals(3, mediaMayor200.size());
+        Assertions.assertFalse(mediaMayor200.isEmpty(),
+                "Debe existir al menos un fabricante con precio medio superior a 200€");
+
 	}
+
 	
 	/**
 	 * 41. Devuelve un listado con los nombres de los fabricantes que tienen 2 o más productos.
@@ -797,7 +962,18 @@ Hewlett-Packard              2
 	@Test
 	void test41() {
 		var listFabs = fabRepo.findAll();
-		//TODO
+
+        var fabricantesCon2oMas = listFabs.stream()
+                .filter(f -> f.getProductos().size() >= 2)
+                .map(f ->  f.getNombre())
+                .sorted()
+                .collect(Collectors.toList());
+
+        // --- Mostrar resultado ---
+        fabricantesCon2oMas.forEach(s ->  System.out.println(s));
+
+        Assertions.assertEquals(4, fabricantesCon2oMas.size());
+        Assertions.assertTrue(fabricantesCon2oMas.contains("Crucial"));
 	}
 	
 	/**
@@ -816,7 +992,19 @@ Hewlett-Packard              2
 	@Test
 	void test43() {
 		var listFabs = fabRepo.findAll();
-		//TODO
+
+        var fabsMasDe1000 = listFabs.stream()
+                .filter(f -> f.getProductos() != null)
+                .filter(f -> f.getProductos().stream()
+                        .mapToDouble(p -> p.getPrecio())
+                        .sum() > 1000)
+                .map(f -> f.getNombre())
+                .toList();
+
+        fabsMasDe1000.forEach(s ->   System.out.println(s));
+
+        Assertions.assertEquals(1, fabsMasDe1000.size());
+        Assertions.assertTrue(fabsMasDe1000.contains("Lenovo"));
 	}
 	
 	/**
@@ -826,7 +1014,21 @@ Hewlett-Packard              2
 	@Test
 	void test44() {
 		var listFabs = fabRepo.findAll();
-		//TODO	
+
+        var fabsMasDe1000MenorAMayor = listFabs.stream()
+                .filter(f -> f.getProductos().stream()
+                        .mapToDouble(p -> p.getPrecio())
+                        .sum() > 1000)
+                .sorted(Comparator.comparingDouble(f -> f.getProductos().stream()
+                        .mapToDouble(p  -> p.getPrecio())
+                        .sum()))
+                .map(f ->  f.getNombre())
+                .toList();
+
+        fabsMasDe1000MenorAMayor.forEach(s ->  System.out.println(s));
+
+        Assertions.assertEquals(1, fabsMasDe1000MenorAMayor.size());
+        Assertions.assertTrue(fabsMasDe1000MenorAMayor.contains("Lenovo"));
 	}
 	
 	/**

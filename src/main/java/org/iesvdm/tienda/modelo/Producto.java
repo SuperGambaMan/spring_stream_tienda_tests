@@ -23,4 +23,19 @@ public class Producto {
     @JoinColumn(name = "codigo_fabricante", referencedColumnName = "codigo")
     private Fabricante fabricante;
 
-}    
+    public void setCodigo(int codigo) {
+        this.codigo = codigo;
+    }
+
+    public void setNombre(String nombre) {
+        this.nombre = nombre;
+    }
+
+    public void setPrecio(double precio) {
+        this.precio = precio;
+    }
+
+    public void setFabricante(Fabricante fabricante) {
+        this.fabricante = fabricante;
+    }
+}

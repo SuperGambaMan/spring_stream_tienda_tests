@@ -12,7 +12,7 @@ import lombok.ToString;
 @Entity
 @Data
 public class Fabricante {
-    
+
     @Id
     public int codigo;
 
