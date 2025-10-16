@@ -16,8 +16,10 @@ import java.math.RoundingMode;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 import static java.util.Comparator.*;
+import static java.util.stream.Collectors.*;
 
 
 @Nested
@@ -553,6 +555,7 @@ Monitor 27 LED Full HD |199.25190000000003|Asus
 	void test27() {
 		var listProds = prodRepo.findAll();
 
+        /* Ejercicio resuelto
         // Filtrar productos con precio >= 180, ordenar y formatear tabla
         List<Producto> filtrados = listProds.stream()
                 .filter(p -> p.getPrecio() >= 180)
@@ -579,9 +582,42 @@ Monitor 27 LED Full HD |199.25190000000003|Asus
         filtrados.forEach(p ->
                 System.out.printf("%-" + maxNombre + "s | %-" + maxPrecio + "s | %s%n",
                         p.getNombre(), p.getPrecio(), p.getFabricante().getNombre())
-        );
+        );*/
 
-        Assertions.assertEquals(7, filtrados.size());
+        long maxLongNombre = listProds.stream().mapToLong(p -> p.getNombre().length()).max().orElse(0);
+
+        long maxLongPrecio = listProds.stream().mapToLong(p -> BigDecimal.valueOf(p.getPrecio())
+                                                    .setScale(2,RoundingMode.HALF_UP)
+                                                    .toString()
+                                                    .length())
+                                                .max()
+                                                .orElse(0);
+
+        //String Cabecera = "Producto" + (maxLongNombre * " ") + " Precio ";
+
+
+
+        String cuerpoTabla = listProds.stream()
+                        .filter(p->p.getPrecio() >=180)
+                                .sorted(comparing((Producto p)->p.getPrecio(),reverseOrder())
+                                        .thenComparing((Producto p) -> p.getNombre() ))
+
+                                .map(p -> p.getNombre()
+                                        + " ".repeat((int)maxLongNombre - p.getNombre().length())
+                                        +"|"
+                                        +BigDecimal.valueOf(p.getPrecio())
+                                                                .setScale(2,RoundingMode.HALF_UP)
+                                        +" ".repeat( (int)maxLongPrecio - BigDecimal.valueOf(p.getPrecio())
+                                                    .toString()
+                                                    .length())
+                                        +"|"
+                                        +p.getFabricante().getNombre()
+                                )
+                                .collect(joining("\n"));
+
+        System.out.println(cuerpoTabla);
+
+        Assertions.assertEquals(7, cuerpoTabla.length());
         //Assertions.assertTrue(filtrados.contains("GeForce GTX 1080 Xtreme         | 755.0  | Crucial"));
 
 	}
@@ -648,9 +684,9 @@ Fabricante: Xiaomi
         // Agrupamos productos por nombre de fabricante
         Map<String, List<String>> productosPorFabricante =
                 listProds.stream()
-                        .collect(Collectors.groupingBy(
+                        .collect(groupingBy(
                                 p -> p.getFabricante().getNombre(),
-                                Collectors.mapping(p -> p.getNombre(), Collectors.toList())
+                                mapping(p -> p.getNombre(), toList())
                         ));
 
         // Mostramos todos los fabricantes, incluso los sin productos
@@ -885,14 +921,14 @@ Hewlett-Packard              2
 
         // --- Agrupar productos por fabricante ---
         var productosPorFabricante = listProds.stream()
-                .collect(Collectors.groupingBy(
+                .collect(groupingBy(
                         p -> p.getFabricante().getNombre(),
-                        Collectors.counting()
+                        counting()
                 ));
 
         // --- Calcular también los que no tienen productos ---
         var totalPorFabricante = listFabs.stream()
-                .collect(Collectors.toMap(
+                .collect(toMap(
                         f -> f.getNombre(),
                         f -> productosPorFabricante.getOrDefault(f.getNombre(), 0L)
                 ));
@@ -934,9 +970,9 @@ Hewlett-Packard              2
 
         //Sacamos todas las estadisticas de los Fabricantes
         var estadisticasPorFabricante = listProds.stream()
-                .collect(Collectors.groupingBy(
+                .collect(groupingBy(
                         p -> p.getFabricante().getCodigo(),
-                        Collectors.summarizingDouble(p-> p.getPrecio())
+                        summarizingDouble(p-> p.getPrecio())
                 ));
 
         //Filtramos para que solo pasen las que tengan una media superior a 200
@@ -967,7 +1003,7 @@ Hewlett-Packard              2
                 .filter(f -> f.getProductos().size() >= 2)
                 .map(f ->  f.getNombre())
                 .sorted()
-                .collect(Collectors.toList());
+                .collect(toList());
 
         // --- Mostrar resultado ---
         fabricantesCon2oMas.forEach(s ->  System.out.println(s));
@@ -975,16 +1011,58 @@ Hewlett-Packard              2
         Assertions.assertEquals(4, fabricantesCon2oMas.size());
         Assertions.assertTrue(fabricantesCon2oMas.contains("Crucial"));
 	}
-	
-	/**
-	 * 42. Devuelve un listado con los nombres de los fabricantes y el número de productos que tiene cada uno con un precio superior o igual a 220 €. 
-	 * Ordenado de mayor a menor número de productos.
-	 */
-	@Test
-	void test42() {
-		var listFabs = fabRepo.findAll();
-		//TODO
-	}
+
+    /** CORREGIDO
+     * 42. Devuelve un listado con los nombres de los fabricantes y el número de productos que tiene cada uno con un precio superior o igual a 220 €.
+     * Ordenado de mayor a menor número de productos.
+     */
+    @Test
+    void test42() {
+        var listFabs = fabRepo.findAll();
+
+        var listadoNombre = listFabs.stream()
+                .map(f -> new Object[]{
+                        f.getNombre(), f.getProductos()
+                        .stream()
+                        .filter(p -> p.getPrecio() > 220)
+                        .count()
+                })
+                .sorted(comparing((a) -> (Long) a[1], reverseOrder()))
+                .toList();
+
+        listadoNombre.forEach(s -> System.out.println("Fabricante " + s[0] + " Cantidad producto: " + s[1]));
+
+        /**Correcion del profesor*/
+        var MapNombre = listFabs.stream()
+                .flatMap(fabricante -> fabricante.getProductos().stream())
+                .collect(groupingBy(producto -> producto.getFabricante().getNombre()
+                        , filtering(producto -> producto.getPrecio() > 220, counting())))
+                .entrySet()
+                .stream()
+                .sorted(comparing((Map.Entry<String, Long> stringLongEntry) -> stringLongEntry.getValue(), reverseOrder()));
+
+
+        MapNombre.forEach(s -> System.out.println(s));
+
+        /** Mejora del test de Manolo*/
+        record MiVector(String nomFab, long contProds) {
+        }
+
+        var listadoNombre3 = listFabs.stream()
+                .map(f -> new MiVector(
+                        f.getNombre(), f.getProductos()
+                        .stream()
+                        .filter(p -> p.getPrecio() > 220)
+                        .count())
+                )
+                .sorted(comparing((a) -> a.contProds(), reverseOrder()))
+                .toList();
+
+        listadoNombre3.forEach(s-> System.out.println(s));
+
+        Assertions.assertEquals(9, listadoNombre.size());
+        //Assertions.assertTrue(listadoNombre.contains("Fabricante Crucial Cantidad producto: 1"));
+    }
 	
 	/**
 	 * 43.Devuelve un listado con los nombres de los fabricantes donde la suma del precio de todos sus productos es superior a 1000 €
@@ -1039,7 +1117,25 @@ Hewlett-Packard              2
 	@Test
 	void test45() {
 		var listFabs = fabRepo.findAll();
-		//TODO
+
+        record productoMasCaro (String producto, double Precio, String fabricante){}
+        var salida = listFabs.stream()
+                .map(f-> {
+                    var optionalProdMax = f.getProductos().stream()
+                            .sorted(comparing(x -> x.getPrecio(), reverseOrder()))
+                            .findFirst();
+                    if (optionalProdMax.isPresent()) {
+                        return optionalProdMax.get().getNombre() + " " + optionalProdMax.get().getPrecio() + " " + f.getNombre();
+                    } else {
+                        return f.getNombre() + " sin productos";
+                    }
+
+                })
+                .collect(joining("\n"));
+
+        System.out.println(salida);
+
+        Assertions.assertTrue(salida.contains("GeForce GTX 1080 Xtreme 755.0 Crucial"));
 	}
 	
 	/**
@@ -1049,7 +1145,24 @@ Hewlett-Packard              2
 	@Test
 	void test46() {
 		var listFabs = fabRepo.findAll();
-		//TODO
+
+        double mediaDeTodosLosProductos = listFabs.stream().flatMap(fabricante -> fabricante.getProductos().stream())
+                .mapToDouble(p-> p.getPrecio()).average().orElse(0.0);
+
+        double sumaTotal = listFabs.stream().flatMap(fabricante -> fabricante.getProductos().stream())
+                .map(p->p.getPrecio())
+                .reduce(0.0,(a,b) -> a+b);
+
+        double totalProds = listFabs.stream().flatMap(fabricante -> fabricante.getProductos().stream()).count();
+
+        double media2 = sumaTotal / totalProds;
+
+        /*var listProdMayorMediaOrdenado = listFabs.stream()
+                        .filter(f-> f.getProductos().get().getPrecio() => mediaDeTodosLosProductos)
+                        .sorted()
+                ;*/
+
+        System.out.println(totalProds);
 	}
 
     @Test
@@ -1060,6 +1173,16 @@ Hewlett-Packard              2
                 .reduce(0, (a,b) -> a+b);
 
         System.out.println(sumaTotal);
+    }
+
+    @Test
+    void testJoining() {
+
+        String hola = Stream.of("Hola", "mundo")
+                .collect(joining(", ", ">", "!"));
+
+        System.out.println(hola);
+
     }
 
 }
