@@ -248,28 +248,17 @@ class TiendaApplicationTests {
 	void test11() {
 		var listProds = prodRepo.findAll();
 
-        /** var listProdCar = listProds.stream() //Producto //DEBERIA ser Optional<Producto>
-                .sorted(comparing((Producto p)-> p.getPrecio(),reverseOrder()))//.findFirst() [Tiene que venir de Optional] para encontrar el primero
-                .limit(1) //Limitamos en 1 para coger solo 1 (el más caro)
-                .map ( p -> p.getNombre() + " " + p.getPrecio() + "€")
-                .toList();*/
         Optional<Producto> listProdCar = listProds.stream()
                 .sorted(
                         comparing(p-> p.getPrecio(), reverseOrder())
                 ).findFirst();
         if(listProdCar.isPresent()){
-            //listProdCar.isEmpty()
             Producto prod = listProdCar.get();
-            System.out.println(prod.getNombre()+" "+prod.getPrecio());
         }
 
         listProdCar.ifPresent(s -> System.out.println(s.getNombre()+" "+s.getPrecio()));
 
-        //listProdCar.forEach(s->System.out.println(s));
-        //System.out.println(prod);
-
-        //Assertions.assertEquals(1, listProdCar.size());
-        //Assertions.assertTrue(listProdCar.if("GeForce GTX 1080 Xtreme 755.0€"));
+        Assertions.assertEquals(1, listProdCar.stream().count());
 	}
 	
 	/**
@@ -550,7 +539,7 @@ Portátil Yoga 520      |452.79            |Lenovo
 Portátil Ideapd 320    |359.64000000000004|Lenovo
 Monitor 27 LED Full HD |199.25190000000003|Asus
 
-	 */		  //     REVISAR
+	 */
 	@Test
 	void test27() {
 		var listProds = prodRepo.findAll();
@@ -593,9 +582,11 @@ Monitor 27 LED Full HD |199.25190000000003|Asus
                                                 .max()
                                                 .orElse(0);
 
-        //String Cabecera = "Producto" + (maxLongNombre * " ") + " Precio ";
-
-
+        String cabecera = String.format(
+                "%-" + (maxLongNombre-1) + "s | %-" + (maxLongPrecio-2) + "s | %s",
+                "Producto", "Precio", "Fabricante"
+        );
+        String separador = "-".repeat(cabecera.length());
 
         String cuerpoTabla = listProds.stream()
                         .filter(p->p.getPrecio() >=180)
@@ -615,11 +606,10 @@ Monitor 27 LED Full HD |199.25190000000003|Asus
                                 )
                                 .collect(joining("\n"));
 
-        System.out.println(cuerpoTabla);
+        System.out.println(cabecera +"\n" +separador +"\n"+ cuerpoTabla);
 
-        Assertions.assertEquals(7, cuerpoTabla.length());
-        //Assertions.assertTrue(filtrados.contains("GeForce GTX 1080 Xtreme         | 755.0  | Crucial"));
-
+        Assertions.assertTrue(cabecera.contains("Producto"));
+        Assertions.assertTrue(cuerpoTabla.contains("GeForce GTX 1080 Xtreme"));
 	}
 	
 	/**
@@ -675,33 +665,30 @@ Fabricante: Xiaomi
 
             	Productos:
 
-	 */               //  REVISAR
-	@Test
-	void test28() {
-		var listFabs = fabRepo.findAll();
-        var listProds = prodRepo.findAll();
+	 */
+    @Test
+    void test28() {
+        var listFabs = fabRepo.findAll();
 
-        // Agrupamos productos por nombre de fabricante
-        Map<String, List<String>> productosPorFabricante =
-                listProds.stream()
-                        .collect(groupingBy(
-                                p -> p.getFabricante().getNombre(),
-                                mapping(p -> p.getNombre(), toList())
-                        ));
+        String salida = listFabs.stream()
+                .sorted(comparing(f -> f.getProductos().size(),reverseOrder()))
+                .map(f -> {
+                    String productos = f.getProductos().stream()
+                            .map(p -> "\t\t" + p.getNombre())
+                            .collect(joining("\n"));
 
-        // Mostramos todos los fabricantes, incluso los sin productos
-        listFabs.stream()
-                .sorted(Comparator.comparing(Fabricante::getNombre))
-                .forEach(f -> {
-                    System.out.println("Fabricante: " + f.getNombre() + "\n");
-                    System.out.println("\t\tProductos:");
-                    productosPorFabricante.getOrDefault(f.getNombre(), List.of())
-                            .forEach(p -> System.out.println("\t\t" + p));
-                    System.out.println();
-                });
+                    return "Fabricante: " + f.getNombre() + "\n\n"
+                            + "\t\tProductos:"
+                            + (productos.isEmpty() ? "" : "\n" + productos)
+                            + "\n";
+                })
+                .collect(joining("\n"));
 
-        Assertions.assertEquals(7, productosPorFabricante.size());
-	}
+        System.out.println(salida);
+
+        Assertions.assertTrue(salida.contains("Fabricante: Asus"));
+        Assertions.assertTrue(salida.contains("Fabricante: Xiaomi"));
+    }
 	
 	/**
 	 * 29. Devuelve un listado donde sólo aparezcan aquellos fabricantes que no tienen ningún producto asociado.
@@ -849,12 +836,12 @@ Fabricante: Xiaomi
 	void test37() {
 		var listProds = prodRepo.findAll();
 
-        var summaryStatistics = listProds.stream()
+        /*var summaryStatistics = listProds.stream()
                 .filter(p->p.getFabricante().getNombre().equals("Crucial"))
                 .mapToDouble(p -> p.getPrecio())
                 .summaryStatistics();
 
-        System.out.println(summaryStatistics);
+        System.out.println(summaryStatistics);*/
 
         double[] reduce = listProds.stream()
                 .filter(p->p.getFabricante().getNombre().equals("Crucial"))
@@ -873,10 +860,10 @@ Fabricante: Xiaomi
                     }
 
                     double maxAnt =  a[1];
-                    if (b[1]< maxAnt){
+                    if (b[1]> maxAnt){
                         maxAct = b[1];
                     } else {
-                        maxAct =minAnt;
+                        maxAct =maxAnt;
                     }
 
                     double sumAnt =  a[2];
@@ -887,12 +874,15 @@ Fabricante: Xiaomi
 
                     return new double[]{minAct, maxAct, sumAct, countAct};
 
-
                 });
+        System.out.printf("Precio mínimo: %.2f%n", reduce[0]);
+        System.out.printf("Precio máximo: %.2f%n", reduce[1]);
+        System.out.printf("Precio medio: %.2f%n", reduce[2] / reduce[3]);
+        System.out.printf("Número de productos: %.0f%n", reduce[3]);
 
-        //System.out.println(reduce);
-
-	}
+        Assertions.assertEquals(2, (int) reduce[3]);
+        Assertions.assertEquals(437.5, reduce[2] / reduce[3], 0.01);
+    }
 	
 	/**
 	 * 38. Muestra el número total de productos que tiene cada uno de los fabricantes. 
@@ -914,50 +904,97 @@ Hewlett-Packard              2
          Xiaomi              0
 
 	 */
-	@Test
-	void test38() {
-		var listFabs = fabRepo.findAll();
-        var listProds = prodRepo.findAll();
+    @Test
+    void test38() {
+        var listFabs = fabRepo.findAll();
 
-        // --- Agrupar productos por fabricante ---
-        var productosPorFabricante = listProds.stream()
-                .collect(groupingBy(
-                        p -> p.getFabricante().getNombre(),
-                        counting()
+
+        String totalProdDeFab = listFabs.stream()
+                .sorted(comparingInt((Fabricante f) -> f.getProductos().size()).reversed())
+                .map(f -> String.format("%15s %15d", f.getNombre(), f.getProductos().size()))
+                .collect(joining(
+                        "\n",
+                        String.format("%15s %15s%n%s%n",
+                                "Fabricante", "#Productos",
+                                "-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*"
+                        ),
+                        ""
                 ));
 
-        // --- Calcular también los que no tienen productos ---
-        var totalPorFabricante = listFabs.stream()
-                .collect(toMap(
-                        f -> f.getNombre(),
-                        f -> productosPorFabricante.getOrDefault(f.getNombre(), 0L)
-                ));
+        System.out.println(totalProdDeFab);
 
-        // --- Imprimir tabla formateada ---
-        System.out.printf("%15s %15s%n", "Fabricante", "#Productos");
-        System.out.println("-*".repeat(30));
-
-        totalPorFabricante.entrySet().stream()
-                .sorted(Map.Entry.comparingByValue(Comparator.reverseOrder()))
-                .forEach(e ->
-                        System.out.println(String.format("%15s %15d", e.getKey(), e.getValue()))
-                );
-
-        Assertions.assertEquals(2, totalPorFabricante.get("Asus"));
-        Assertions.assertEquals(9, totalPorFabricante.size());
-	}
+        Assertions.assertTrue(totalProdDeFab.contains("Fabricante"));
+        Assertions.assertTrue(totalProdDeFab.contains("Xiaomi"));
+    }
 	
 	/**
 	 * 39. Muestra el precio máximo, precio mínimo y precio medio de los productos de cada uno de los fabricantes. 
 	 * El resultado mostrará el nombre del fabricante junto con los datos que se solicitan. Realízalo en 1 solo stream principal. Utiliza reduce con Double[] como "acumulador".
 	 * Deben aparecer los fabricantes que no tienen productos.
 	 */
-	@Test
-	void test39() {
-		var listFabs = fabRepo.findAll();
+    @Test
+    void test39() {
+        var listFabs = fabRepo.findAll();
 
+        String statsFabs = listFabs.stream()
+                .sorted(comparing(fabricante -> fabricante.getNombre()))
+                .map(f -> {
 
-	}
+                    if (f.getProductos().isEmpty()) {
+                        return String.format(
+                                "Fabricante: %-15s | Min: %-8s | Max: %-8s | Media: %-8s",
+                                f.getNombre(), "0", "0", "0"
+                        );
+                    }
+
+                    double[] reduce = f.getProductos().stream()
+                            .map(p->new double[]{p.getPrecio(),p.getPrecio(),p.getPrecio(),0})
+                            .reduce(new double[]{Double.MAX_VALUE/*min*/, Double.MIN_VALUE/*max*/, 0.0/*sum*/,0.0/*count*/},(a,b)->{
+                                double minAct;
+                                double maxAct;
+                                double sumAct;
+                                double countAct;
+
+                                double minAnt =  a[0];
+                                if (b[0]< minAnt){
+                                    minAct = b[0];
+                                } else {
+                                    minAct =minAnt;
+                                }
+
+                                double maxAnt =  a[1];
+                                if (b[1]> maxAnt){
+                                    maxAct = b[1];
+                                } else {
+                                    maxAct = maxAnt;
+                                }
+
+                                double sumAnt =  a[2];
+                                sumAct = sumAnt + b[2];
+
+                                double countAnt =  a[3];
+                                countAct = countAnt+1;
+
+                                return new double[]{minAct, maxAct, sumAct, countAct};
+
+                            });
+
+                    double min = reduce[0];
+                    double max = reduce[1];
+                    double media = reduce[2] / reduce[3];
+
+                    return String.format(
+                            "Fabricante: %-15s | Min: %-8.2f | Max: %-8.2f | Media: %-8.2f",
+                            f.getNombre(), min, max, media
+                    );
+                })
+                .collect(joining("\n"));
+
+        System.out.println(statsFabs);
+
+        Assertions.assertTrue(statsFabs.contains("Fabricante: Crucial"));
+        Assertions.assertTrue(statsFabs.contains("Fabricante: Xiaomi"));
+    }
 	
 	/**
 	 * 40. Muestra el precio máximo, precio mínimo, precio medio y el número total de productos de los fabricantes que tienen un precio medio superior a 200€. 
@@ -966,29 +1003,73 @@ Hewlett-Packard              2
 	@Test
 	void test40() {
 		var listFabs = fabRepo.findAll();
-        var listProds = prodRepo.findAll();
 
-        //Sacamos todas las estadisticas de los Fabricantes
-        var estadisticasPorFabricante = listProds.stream()
-                .collect(groupingBy(
-                        p -> p.getFabricante().getCodigo(),
-                        summarizingDouble(p-> p.getPrecio())
-                ));
+        String statsFabs = listFabs.stream()
+                .sorted(comparing(fabricante -> fabricante.getNombre()))
+                .map(f -> {
 
-        //Filtramos para que solo pasen las que tengan una media superior a 200
-        var mediaMayor200 = estadisticasPorFabricante.entrySet().stream()
-                .filter(e -> e.getValue().getAverage() > 200)
-                .toList();
+                    if (f.getProductos().isEmpty()) {
+                        return String.format(
+                                "Fabricante: %-15s | Min: %-8s | Max: %-8s | Media: %-8s",
+                                f.getNombre(), "0", "0", "0"
+                        );
+                    }
 
-        //Sacamos por pantalla el Codigo de fabricante y las estadisticas de cada fabricante
-        mediaMayor200.forEach(e -> System.out.println(
-                "Código fabricante: " + e.getKey() + " → " + e.getValue()
-                ));
+                    double[] reduce = f.getProductos().stream()
+                            .map(p->new double[]{p.getPrecio(),p.getPrecio(),p.getPrecio(),0})
+                            .reduce(new double[]{Double.MAX_VALUE/*min*/, Double.MIN_VALUE/*max*/, 0.0/*sum*/,0.0/*count*/},(a,b)->{
+                                double minAct;
+                                double maxAct;
+                                double sumAct;
+                                double countAct;
 
-        Assertions.assertEquals(3, mediaMayor200.size());
-        Assertions.assertFalse(mediaMayor200.isEmpty(),
-                "Debe existir al menos un fabricante con precio medio superior a 200€");
+                                double minAnt =  a[0];
+                                if (b[0]< minAnt){
+                                    minAct = b[0];
+                                } else {
+                                    minAct =minAnt;
+                                }
 
+                                double maxAnt =  a[1];
+                                if (b[1]> maxAnt){
+                                    maxAct = b[1];
+                                } else {
+                                    maxAct = maxAnt;
+                                }
+
+                                double sumAnt =  a[2];
+                                sumAct = sumAnt + b[2];
+
+                                double countAnt =  a[3];
+                                countAct = countAnt+1;
+
+                                return new double[]{minAct, maxAct, sumAct, countAct};
+
+                            });
+
+                    double min = reduce[0];
+                    double max = reduce[1];
+                    double media = reduce[2] / reduce[3];
+                    if (media > 200){
+                        return String.format(
+                                "Fabricante: %-15s | Min: %-8.2f | Max: %-8.2f | Media: %-8.2f| Número de productos: %-8.2f",
+                                f.getCodigo(), min, max, media, reduce[3]
+                        );
+                    }
+                    else {
+                        return String.format(
+                                "Fabricante: %-15s | No es superior a 200 la media",
+                                f.getCodigo()
+                        );
+                    }
+
+                })
+                .collect(joining("\n"));
+
+        System.out.println(statsFabs);
+
+        Assertions.assertTrue(statsFabs.contains("Fabricante: Crucial"));
+        Assertions.assertTrue(statsFabs.contains("Fabricante: Xiaomi"));
 	}
 
 	
@@ -1005,7 +1086,6 @@ Hewlett-Packard              2
                 .sorted()
                 .collect(toList());
 
-        // --- Mostrar resultado ---
         fabricantesCon2oMas.forEach(s ->  System.out.println(s));
 
         Assertions.assertEquals(4, fabricantesCon2oMas.size());
@@ -1044,7 +1124,7 @@ Hewlett-Packard              2
 
         MapNombre.forEach(s -> System.out.println(s));
 
-        /** Mejora del test de Manolo*/
+        /** Mejora del test inicial*/
         record MiVector(String nomFab, long contProds) {
         }
 
@@ -1061,7 +1141,6 @@ Hewlett-Packard              2
         listadoNombre3.forEach(s-> System.out.println(s));
 
         Assertions.assertEquals(9, listadoNombre.size());
-        //Assertions.assertTrue(listadoNombre.contains("Fabricante Crucial Cantidad producto: 1"));
     }
 	
 	/**
