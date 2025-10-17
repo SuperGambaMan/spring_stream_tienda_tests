@@ -479,15 +479,13 @@ class TiendaApplicationTests {
 	void test24() {
 		var listProds = prodRepo.findAll();
 
-        var listProdsPreFabs = listProds.stream() //Producto
-                .sorted(comparing(( Producto p)->p.getFabricante().getNombre()))
-                .limit(1) //Limitamos en 1 para coger solo 1 (el más caro)
+        String listProdsCaro = listProds.stream() //Producto
+                .max(comparing(p->p.getPrecio()))
                 .map ( p -> p.getNombre() + " " + p.getPrecio() + " " + p.getFabricante().getNombre() )
-                .toList();
-        listProdsPreFabs.forEach(s->System.out.println(s));
+                .orElse("No hay productos");
+        System.out.println(listProdsCaro);
 
-        Assertions.assertEquals(11, listProdsPreFabs.size());
-        Assertions.assertTrue(listProdsPreFabs.contains("GeForce GTX 1050Ti 185.0 Gigabyte"));
+        Assertions.assertTrue(listProdsCaro.equals("GeForce GTX 1080 Xtreme 755.0 Crucial"));
 	}
 	
 	/**
@@ -1005,13 +1003,12 @@ Hewlett-Packard              2
 		var listFabs = fabRepo.findAll();
 
         String statsFabs = listFabs.stream()
-                .sorted(comparing(fabricante -> fabricante.getNombre()))
                 .map(f -> {
 
                     if (f.getProductos().isEmpty()) {
                         return String.format(
-                                "Fabricante: %-15s | Min: %-8s | Max: %-8s | Media: %-8s",
-                                f.getNombre(), "0", "0", "0"
+                                "Fabricante: %-15s | No tiene productos",
+                                f.getCodigo()
                         );
                     }
 
@@ -1068,8 +1065,8 @@ Hewlett-Packard              2
 
         System.out.println(statsFabs);
 
-        Assertions.assertTrue(statsFabs.contains("Fabricante: Crucial"));
-        Assertions.assertTrue(statsFabs.contains("Fabricante: Xiaomi"));
+        Assertions.assertTrue(statsFabs.contains("Fabricante: 1"));
+        Assertions.assertTrue(statsFabs.contains("No es superior a 200 la media"));
 	}
 
 	
